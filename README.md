@@ -55,14 +55,62 @@ Tres tablas en el esquema `public`:
 Se configuró UptimeRobot (https://uptimerobot.com) para hacer ping cada 5 minutos
 a `https://iberg-reportes.onrender.com/health` y evitar que Render duerma el servicio.
 
-## Cómo retomar el proyecto
+## Cómo ejecutar en modo local
 
-1. Clonar el repo: `git clone https://github.com/raleortiz/iberg-reportes.git`
-2. Instalar dependencias: `npm install`
-3. Crear archivo `.env` con las variables de entorno (ver arriba)
-4. Ejecutar localmente: `npm start` → abre http://localhost:3000
-5. Para subir cambios: `git add . && git commit -m "mensaje" && git push`
-6. Render deploya automáticamente al hacer push a `main`
+### 1. Instalar Node.js
+
+1. Ve a https://nodejs.org
+2. Descarga la versión **LTS** (recomendada)
+3. Ejecuta el instalador y dale "Next" en todo
+4. Para verificar que se instaló, abre una terminal y ejecuta:
+   ```
+   node --version
+   npm --version
+   ```
+   Si muestra los números de versión, está listo.
+
+### 2. Clonar el proyecto
+
+```
+git clone https://github.com/raleortiz/iberg-reportes.git
+cd iberg-reportes
+```
+
+### 3. Instalar dependencias
+
+```
+npm install
+```
+
+### 4. Crear archivo .env
+
+Crea un archivo llamado `.env` en la raíz del proyecto con estas dos líneas:
+
+```
+SUPABASE_URL=https://flzwjulbcbpbzqoyawtb.supabase.co
+SUPABASE_KEY=<tu_secret_key_de_supabase>
+```
+
+La secret key la encuentras en:
+- Supabase Dashboard → Settings → API Keys → Secret keys
+
+### 5. Ejecutar el servidor
+
+```
+node server.js
+```
+
+Abre el navegador en **http://localhost:3000**
+
+### 6. Subir cambios a GitHub
+
+```
+git add .
+git commit -m "descripcion del cambio"
+git push
+```
+
+Render deploya automáticamente al hacer push a la rama `main`.
 
 ## Funcionalidades
 
