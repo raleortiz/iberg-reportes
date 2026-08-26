@@ -250,6 +250,10 @@ app.delete('/api/informes/:id', async (req, res) => {
   res.json({ mensaje: 'Informe eliminado' });
 });
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
