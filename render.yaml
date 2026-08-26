@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: iberg-reportes
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false

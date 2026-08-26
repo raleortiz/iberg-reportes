@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Iberg - Gestión de Informes</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #333; }
+
+    .header {
+      background: linear-gradient(135deg, #1a237e, #283593);
+      color: white; padding: 20px 30px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header h1 { font-size: 1.4rem; }
+    .header .subtitle { font-size: 0.85rem; opacity: 0.8; }
+
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+
+    .toolbar {
+      display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;
+      font-size: 0.9rem; font-weight: 500; transition: all 0.2s;
+    }
+    .btn-primary { background: #1565c0; color: white; }
+    .btn-primary:hover { background: #0d47a1; }
+    .btn-success { background: #2e7d32; color: white; }
+    .btn-success:hover { background: #1b5e20; }
+    .btn-danger { background: #c62828; color: white; }
+    .btn-danger:hover { background: #b71c1c; }
+    .btn-outline { background: white; border: 1px solid #ddd; color: #555; }
+    .btn-outline:hover { background: #f5f5f5; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .card {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 16px; overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px; border-bottom: 1px solid #eee;
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer;
+    }
+    .card-header:hover { background: #fafafa; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+    }
+    .badge-art { background: #e3f2fd; color: #1565c0; }
+    .badge-ventas { background: #e8f5e9; color: #2e7d32; }
+
+    .card-body { padding: 0; display: none; }
+    .card-body.open { display: block; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { background: #f5f5f5; padding: 10px 12px; text-align: left; font-weight: 600;
+         border-bottom: 2px solid #e0e0e0; position: sticky; top: 0; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:hover td { background: #f8f9fa; }
+    tr.total-row { background: #e8eaf6; font-weight: 600; }
+
+    .table-scroll { max-height: 500px; overflow-y: auto; }
+
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px; padding: 16px 20px; border-bottom: 1px solid #eee;
+    }
+    .info-item label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+    .info-item p { font-size: 0.95rem; font-weight: 500; margin-top: 2px; }
+
+    .loading { text-align: center; padding: 40px; color: #888; }
+    .empty { text-align: center; padding: 60px 20px; color: #aaa; }
+    .empty h3 { margin-bottom: 8px; }
+
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; padding: 12px 24px;
+      border-radius: 8px; color: white; font-size: 0.9rem; z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+    .toast-success { background: #2e7d32; }
+    .toast-error { background: #c62828; }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px; padding: 16px 20px;
+    }
+    .stat-box { text-align: center; padding: 12px; background: #f8f9fa; border-radius: 6px; }
+    .stat-box .number { font-size: 1.5rem; font-weight: 700; color: #1565c0; }
+    .stat-box .label { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
+    .search-box {
+      padding: 8px 16px; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 0.9rem; width: 250px;
+    }
+    .search-box:focus { outline: none; border-color: #1565c0; }
+
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 999; justify-content: center; align-items: center;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: white; border-radius: 12px; width: 500px; max-width: 90vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-header {
+      padding: 20px 24px; border-bottom: 1px solid #eee;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h2 { font-size: 1.1rem; }
+    .modal-close {
+      background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #888;
+    }
+    .modal-close:hover { color: #333; }
+    .modal-body { padding: 24px; }
+
+    .upload-zone {
+      border: 2px dashed #ccc; border-radius: 8px; padding: 30px; text-align: center;
+      margin-bottom: 16px; transition: all 0.2s; cursor: pointer;
+    }
+    .upload-zone:hover { border-color: #1565c0; background: #f8f9ff; }
+    .upload-zone.has-file { border-color: #2e7d32; background: #f1f8f1; }
+    .upload-zone input[type="file"] { display: none; }
+    .upload-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-zone .label { font-weight: 600; margin-bottom: 4px; }
+    .upload-zone .hint { font-size: 0.8rem; color: #888; }
+    .upload-zone .filename { color: #2e7d32; font-weight: 500; margin-top: 8px; }
+
+    .modal-footer {
+      padding: 16px 24px; border-top: 1px solid #eee;
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+
+    .progress-bar {
+      width: 100%; height: 6px; background: #e0e0e0; border-radius: 3px;
+      overflow: hidden; margin-top: 16px; display: none;
+    }
+    .progress-bar.active { display: block; }
+    .progress-bar-fill {
+      height: 100%; background: #1565c0; border-radius: 3px;
+      transition: width 0.3s; width: 0%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>INDUSTRIAS BERG SAS</h1>
+    <div class="subtitle">Sistema de Gestión de Informes de Ventas</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:0.8rem; opacity:0.7">NIT 890303902-9</div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="abrirModal()">
+      Subir Excel
+    </button>
+    <button class="btn btn-outline" onclick="cargarInformes()">
+      Actualizar
+    </button>
+    <div style="flex:1"></div>
+    <input type="text" class="search-box" id="searchBox" placeholder="Buscar informe..."
+           oninput="filtrarInformes()">
+  </div>
+
+  <div id="listaInformes">
+    <div class="loading">Cargando informes...</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Subir Archivos Excel</h2>
+      <button class="modal-close" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="upload-zone" id="zoneArt" onclick="document.getElementById('fileArt').click()">
+        <input type="file" id="fileArt" accept=".xlsx,.xls" onchange="onFileSelect('art', this)">
+        <div class="icon">&#128196;</div>
+        <div class="label">Archivo ART</div>
+        <div class="hint">Excel de productos (RECORD DE VENTAS por artículo)</div>
+        <div class="filename" id="nameArt"></div>
+      </div>
+      <div class="upload-zone" id="zoneVentas" onclick="document.getElementById('fileVentas').click()">
+        <input type="file" id="fileVentas" accept=".xlsx,.xls" onchange="onFileSelect('ventas', this)">
+        <div class="icon">&#128196;</div>
+        <div class="label">Archivo VENTAS</div>
+        <div class="hint">Excel de ventas por zona y cliente</div>
+        <div class="filename" id="nameVentas"></div>
+      </div>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btnSubir" onclick="subirArchivos()" disabled>
+        Subir y Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let informesData = [];
+  let archivos = { art: null, ventas: null };
+
+  function abrirModal() {
+    document.getElementById('uploadModal').classList.add('active');
+  }
+
+  function cerrarModal() {
+    document.getElementById('uploadModal').classList.remove('active');
+    archivos = { art: null, ventas: null };
+    document.getElementById('fileArt').value = '';
+    document.getElementById('fileVentas').value = '';
+    document.getElementById('nameArt').textContent = '';
+    document.getElementById('nameVentas').textContent = '';
+    document.getElementById('zoneArt').classList.remove('has-file');
+    document.getElementById('zoneVentas').classList.remove('has-file');
+    document.getElementById('btnSubir').disabled = true;
+    document.getElementById('progressBar').classList.remove('active');
+    document.getElementById('progressFill').style.width = '0%';
+  }
+
+  function onFileSelect(tipo, input) {
+    if (input.files.length > 0) {
+      archivos[tipo] = input.files[0];
+      document.getElementById(`name${tipo === 'art' ? 'Art' : 'Ventas'}`).textContent = input.files[0].name;
+      document.getElementById(`zone${tipo === 'art' ? 'Art' : 'Ventas'}`).classList.add('has-file');
+    }
+    document.getElementById('btnSubir').disabled = !(archivos.art && archivos.ventas);
+  }
+
+  async function subirArchivos() {
+    const btn = document.getElementById('btnSubir');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+
+    btn.disabled = true;
+    btn.textContent = 'Subiendo...';
+    progressBar.classList.add('active');
+    progressFill.style.width = '30%';
+
+    try {
+      const formData = new FormData();
+      formData.append('art', archivos.art);
+      formData.append('ventas', archivos.ventas);
+
+      progressFill.style.width = '60%';
+
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      progressFill.style.width = '100%';
+
+      if (!res.ok) throw new Error(data.error);
+
+      showToast(`Cargados: ${data.informes[0].registros} ART + ${data.informes[1].registros} VENTAS`, 'success');
+      cerrarModal();
+      await cargarInformes();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Subir y Guardar';
+      progressBar.classList.remove('active');
+      progressFill.style.width = '0%';
+      document.getElementById('btnSubir').disabled = !(archivos.art && archivos.ventas);
+    }
+  }
+
+  async function cargarInformes() {
+    try {
+      const res = await fetch('/api/informes');
+      informesData = await res.json();
+      renderInformes(informesData);
+    } catch (err) {
+      document.getElementById('listaInformes').innerHTML =
+        '<div class="empty"><h3>Error de conexión</h3><p>No se pudo conectar al servidor</p></div>';
+    }
+  }
+
+  function renderInformes(informes) {
+    const container = document.getElementById('listaInformes');
+
+    if (!informes || informes.length === 0) {
+      container.innerHTML = `
+        <div class="empty">
+          <h3>No hay informes</h3>
+          <p>Haz clic en "Cargar Excel" para importar los archivos de la carpeta ARCHIVOS</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = informes.map(inf => `
+      <div class="card" id="card-${inf.id}">
+        <div class="card-header" onclick="toggleCard(${inf.id}, '${inf.tipo}')">
+          <div>
+            <span class="badge badge-${inf.tipo.toLowerCase()}">${inf.tipo}</span>
+            <strong style="margin-left:10px">${inf.titulo || 'Sin título'}</strong>
+            <span style="margin-left:10px; color:#888; font-size:0.85rem">
+              ${inf.fecha_desde || '?'} — ${inf.fecha_hasta || '?'}
+            </span>
+          </div>
+          <div>
+            <button class="btn btn-success" onclick="event.stopPropagation(); exportar(${inf.id})"
+                    style="padding:6px 14px; font-size:0.8rem">
+              Exportar Excel
+            </button>
+            <button class="btn btn-danger" onclick="event.stopPropagation(); eliminar(${inf.id})"
+                    style="padding:6px 14px; font-size:0.8rem; margin-left:4px">
+              Eliminar
+            </button>
+          </div>
+        </div>
+        <div class="card-body" id="body-${inf.id}">
+          <div class="loading">Cargando datos...</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function toggleCard(id, tipo) {
+    const body = document.getElementById(`body-${id}`);
+    if (body.classList.contains('open')) {
+      body.classList.remove('open');
+      return;
+    }
+
+    body.classList.add('open');
+    body.innerHTML = '<div class="loading">Cargando datos...</div>';
+
+    try {
+      const endpoint = tipo === 'ART' ? `/api/informes/${id}/art` : `/api/informes/${id}/ventas`;
+      const res = await fetch(endpoint);
+      const data = await res.json();
+
+      if (tipo === 'ART') renderART(body, data);
+      else renderVENTAS(body, data);
+    } catch (err) {
+      body.innerHTML = '<div class="loading">Error al cargar datos</div>';
+    }
+  }
+
+  function renderART(container, data) {
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="loading">Sin datos</div>';
+      return;
+    }
+
+    const totalCant = data.reduce((s, d) => s + (parseFloat(d.cantidades) || 0), 0);
+    const totalVal = data.reduce((s, d) => s + (parseFloat(d.valores) || 0), 0);
+
+    container.innerHTML = `
+      <div class="stats">
+        <div class="stat-box"><div class="number">${data.length}</div><div class="label">Productos</div></div>
+        <div class="stat-box"><div class="number">${formatNum(totalCant)}</div><div class="label">Cantidades</div></div>
+        <div class="stat-box"><div class="number">$${formatNum(totalVal)}</div><div class="label">Valor Total</div></div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Producto</th><th>Cantidades</th><th>Valores</th><th>% Part</th>
+          </tr></thead>
+          <tbody>
+            ${data.map(d => `<tr>
+              <td>${d.producto_codigo || ''}</td>
+              <td>${d.producto_nombre || ''}</td>
+              <td style="text-align:right">${formatNum(d.cantidades)}</td>
+              <td style="text-align:right">$${formatNum(d.valores)}</td>
+              <td style="text-align:right">${(d.porcentaje || 0).toFixed(2)}%</td>
+            </tr>`).join('')}
+            <tr class="total-row">
+              <td colspan="2">TOTAL</td>
+              <td style="text-align:right">${formatNum(totalCant)}</td>
+              <td style="text-align:right">$${formatNum(totalVal)}</td>
+              <td style="text-align:right">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderVENTAS(container, data) {
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="loading">Sin datos</div>';
+      return;
+    }
+
+    const totalCant = data.reduce((s, d) => s + (parseFloat(d.cantidades) || 0), 0);
+    const totalVal = data.reduce((s, d) => s + (parseFloat(d.valores) || 0), 0);
+    const zonas = [...new Set(data.map(d => d.zona))].length;
+    const clientes = data.length;
+
+    container.innerHTML = `
+      <div class="stats">
+        <div class="stat-box"><div class="number">${zonas}</div><div class="label">Zonas</div></div>
+        <div class="stat-box"><div class="number">${clientes}</div><div class="label">Clientes</div></div>
+        <div class="stat-box"><div class="number">${formatNum(totalCant)}</div><div class="label">Cantidades</div></div>
+        <div class="stat-box"><div class="number">$${formatNum(totalVal)}</div><div class="label">Valor Total</div></div>
+      </div>
+      <div style="padding:8px 12px; background:#f5f5f5; border-bottom:1px solid #eee">
+        <select id="filtroZona-${data[0]?.informe_id}" onchange="filtrarZona(this.value, ${data[0]?.informe_id})"
+                style="padding:6px 12px; border:1px solid #ddd; border-radius:4px; font-size:0.85rem">
+          <option value="">Todas las zonas</option>
+          ${[...new Set(data.map(d => d.zona))].map(z => `<option value="${z}">${z}</option>`).join('')}
+        </select>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>ID Cliente</th><th>Cliente</th><th>Zona</th><th>Cantidades</th><th>Valores</th><th>% Part</th>
+          </tr></thead>
+          <tbody id="tbody-ventas-${data[0]?.informe_id}">
+            ${data.map(d => `<tr data-zona="${d.zona}">
+              <td>${d.cliente_id || ''}</td>
+              <td>${d.cliente_nombre || ''}</td>
+              <td>${d.zona || ''}</td>
+              <td style="text-align:right">${formatNum(d.cantidades)}</td>
+              <td style="text-align:right">$${formatNum(d.valores)}</td>
+              <td style="text-align:right">${(d.porcentaje || 0).toFixed(2)}%</td>
+            </tr>`).join('')}
+            <tr class="total-row">
+              <td colspan="3">TOTAL</td>
+              <td style="text-align:right">${formatNum(totalCant)}</td>
+              <td style="text-align:right">$${formatNum(totalVal)}</td>
+              <td style="text-align:right">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  function filtrarZona(zona, informeId) {
+    const tbody = document.getElementById(`tbody-ventas-${informeId}`);
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr[data-zona]');
+    rows.forEach(row => {
+      row.style.display = (!zona || row.dataset.zona === zona) ? '' : 'none';
+    });
+  }
+
+  function filtrarInformes() {
+    const query = document.getElementById('searchBox').value.toLowerCase();
+    const filtrados = informesData.filter(inf =>
+      (inf.titulo || '').toLowerCase().includes(query) ||
+      (inf.tipo || '').toLowerCase().includes(query) ||
+      (inf.fecha_desde || '').includes(query) ||
+      (inf.fecha_hasta || '').includes(query)
+    );
+    renderInformes(filtrados);
+  }
+
+  async function exportar(id) {
+    try {
+      const res = await fetch(`/api/exportar/${id}`);
+      if (!res.ok) throw new Error('Error al exportar');
+
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition');
+      const filename = disposition ? disposition.split('filename=')[1].replace(/"/g, '') : 'informe.xlsx';
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      showToast('Excel exportado correctamente', 'success');
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  }
+
+  async function eliminar(id) {
+    if (!confirm('¿Eliminar este informe?')) return;
+
+    try {
+      const res = await fetch(`/api/informes/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar');
+      showToast('Informe eliminado', 'success');
+      await cargarInformes();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  }
+
+  function formatNum(n) {
+    return parseFloat(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 });
+  }
+
+  function showToast(msg, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  cargarInformes();
+</script>
+
+</body>
+</html>

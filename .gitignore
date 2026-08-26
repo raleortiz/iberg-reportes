@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.local
+ARCHIVOS/
+*.log
+.DS_Store
+mis_datos.txt
