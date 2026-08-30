@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Recaudo - Iberg</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #333; }
+
+    .header {
+      background: linear-gradient(135deg, #1a237e, #283593);
+      color: white; padding: 20px 30px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header h1 { font-size: 1.4rem; }
+    .header .subtitle { font-size: 0.85rem; opacity: 0.8; }
+
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;
+      font-size: 0.9rem; font-weight: 500; transition: all 0.2s;
+    }
+    .btn-primary { background: #1565c0; color: white; }
+    .btn-primary:hover { background: #0d47a1; }
+    .btn-outline { background: white; border: 1px solid #ddd; color: #555; }
+    .btn-outline:hover { background: #f5f5f5; }
+    .btn-back { background: #e0e0e0; color: #333; }
+    .btn-back:hover { background: #cecece; }
+
+    .dash-filtros {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 16px;
+      flex-wrap: wrap; align-items: flex-end;
+    }
+    .dash-filtros .campo { display: flex; flex-direction: column; gap: 4px; }
+    .dash-filtros label { font-size: 0.78rem; color: #888; text-transform: uppercase; font-weight: 600; }
+    .dash-filtros input[type="date"] { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+    .dash-filtros select.multi {
+      padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;
+      min-width: 280px; max-width: 380px; min-height: 38px;
+    }
+
+    .dash-kpis {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 20px;
+    }
+    .dash-kpi {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 20px; border-left: 4px solid #1565c0;
+    }
+    .dash-kpi .dash-kpi-num { font-size: 1.8rem; font-weight: 700; color: #1a237e; margin-top: 6px; }
+    .dash-kpi .dash-kpi-lbl { font-size: 0.8rem; color: #888; text-transform: uppercase; }
+
+    .dash-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;
+    }
+    .dash-card {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px;
+    }
+    .dash-card h3 { font-size: 1rem; margin-bottom: 16px; }
+    .dash-card canvas { max-height: 340px; }
+    .dash-full { grid-column: 1 / -1; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { background: #f5f5f5; padding: 10px 12px; text-align: left; font-weight: 600;
+         border-bottom: 2px solid #e0e0e0; position: sticky; top: 0; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:hover td { background: #f8f9fa; }
+    .table-scroll { max-height: 500px; overflow-y: auto; }
+
+    .loading { text-align: center; padding: 40px; color: #888; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Dashboard Recaudo</h1>
+    <div class="subtitle">INDUSTRIAS BERG SAS</div>
+  </div>
+  <button class="btn btn-back" onclick="window.location.href='index.html'">&larr; Volver a Principal</button>
+</div>
+
+<div class="container">
+  <div class="dash-filtros">
+    <div class="campo">
+      <label>Desde</label>
+      <input type="date" id="dashDesde">
+    </div>
+    <div class="campo">
+      <label>Hasta</label>
+      <input type="date" id="dashHasta">
+    </div>
+    <div class="campo" style="flex:1; min-width:300px">
+      <label>Clientes (seleccionar varios con Ctrl)</label>
+      <select id="dashClientes" class="multi" multiple size="4"></select>
+    </div>
+    <button class="btn btn-primary" onclick="aplicarDashboard()" style="height:38px">Aplicar</button>
+    <button class="btn btn-outline" onclick="limpiarFiltros()" style="height:38px">Limpiar</button>
+  </div>
+
+  <div class="dash-kpis" id="dashKpis"></div>
+
+  <div class="dash-grid">
+    <div class="dash-card">
+      <h3 style="display:flex; justify-content:space-between; align-items:center">
+        <span>Recaudo por Día</span>
+        <select id="dashAgrupar" onchange="aplicarDashboard()" style="padding:5px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.85rem">
+          <option value="dias">Por día</option>
+          <option value="mes">Por mes</option>
+        </select>
+      </h3>
+      <canvas id="chartDia"></canvas>
+    </div>
+    <div class="dash-card">
+      <h3>Recaudo por cliente</h3>
+      <canvas id="chartCliente"></canvas>
+    </div>
+    <div class="dash-card dash-full">
+      <h3>Detalle por cliente</h3>
+      <div class="table-scroll" id="dashTabla"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let chartDia = null;
+  let chartCliente = null;
+
+  const colores = ['#1565c0', '#2e7d32', '#ef6c00', '#7b1fa2', '#c62828', '#00838f', '#5d4037', '#827717'];
+
+  async function init() {
+    document.getElementById('dashAgrupar').value = 'dias';
+    definirRangoPorDefecto();
+    await cargarClientes();
+    aplicarDashboard();
+  }
+
+  function definirRangoPorDefecto() {
+    const hoy = new Date();
+    const hace30 = new Date();
+    hace30.setDate(hoy.getDate() - 30);
+    document.getElementById('dashDesde').value = hace30.toISOString().split('T')[0];
+    document.getElementById('dashHasta').value = hoy.toISOString().split('T')[0];
+  }
+
+  async function cargarClientes() {
+    try {
+      const res = await fetch('/api/recaudos/clientes');
+      const clientes = await res.json();
+      document.getElementById('dashClientes').innerHTML = clientes
+        .map(c => `<option value="${c.replace(/"/g, '&quot;')}">${c}</option>`)
+        .join('');
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function aplicarDashboard() {
+    const desde = document.getElementById('dashDesde').value;
+    const hasta = document.getElementById('dashHasta').value;
+    const agrupar = document.getElementById('dashAgrupar').value;
+    const sel = document.getElementById('dashClientes');
+    const clientes = Array.from(sel.selectedOptions).map(o => o.value);
+
+    const params = new URLSearchParams();
+    if (desde) params.append('desde', desde);
+    if (hasta) params.append('hasta', hasta);
+    if (clientes.length > 0) params.append('clientes', clientes.join(','));
+    params.append('agrupar', agrupar);
+
+    try {
+      const res = await fetch(`/api/recaudos/dashboard?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      renderDashboardDatos(data);
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    }
+  }
+
+  function limpiarFiltros() {
+    document.getElementById('dashDesde').value = '';
+    document.getElementById('dashHasta').value = '';
+    Array.from(document.getElementById('dashClientes').options).forEach(o => o.selected = false);
+    aplicarDashboard();
+  }
+
+  function formatNum(n) {
+    return parseFloat(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 });
+  }
+
+  function showToast(msg, type) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `position:fixed; bottom:20px; right:20px; padding:12px 24px;
+      border-radius:8px; color:white; font-size:0.9rem; z-index:1000; background:${type === 'error' ? '#c62828' : '#2e7d32'}`;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  function renderDashboardDatos(data) {
+    const k = data.kpis;
+    document.getElementById('dashKpis').innerHTML = `
+      <div class="dash-kpi">
+        <div class="dash-kpi-lbl">Recaudo Total</div>
+        <div class="dash-kpi-num">$${formatNum(k.recaudo_total)}</div>
+      </div>
+      <div class="dash-kpi" style="border-left-color:#2e7d32">
+        <div class="dash-kpi-lbl">Facturas</div>
+        <div class="dash-kpi-num">${formatNum(k.facturas)}</div>
+      </div>
+      <div class="dash-kpi" style="border-left-color:#ef6c00">
+        <div class="dash-kpi-lbl">Clientes</div>
+        <div class="dash-kpi-num">${formatNum(k.clientes)}</div>
+      </div>
+      <div class="dash-kpi" style="border-left-color:#c62828">
+        <div class="dash-kpi-lbl">Promedio / Factura</div>
+        <div class="dash-kpi-num">$${formatNum(k.promedio)}</div>
+      </div>
+    `;
+
+    if (chartDia) chartDia.destroy();
+    if (chartCliente) chartCliente.destroy();
+
+    const esMes = document.getElementById('dashAgrupar').value === 'mes';
+    const etiquetaEje = esMes ? data.por_dia.map(d => formatoMes(d.fecha)) : data.por_dia.map(d => d.fecha);
+
+    chartDia = new Chart(document.getElementById('chartDia'), {
+      type: 'bar',
+      data: {
+        labels: etiquetaEje,
+        datasets: [{
+          label: 'Recaudo',
+          data: data.por_dia.map(d => d.recaudo),
+          backgroundColor: '#1565c0', borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+
+    chartCliente = new Chart(document.getElementById('chartCliente'), {
+      type: 'bar',
+      data: {
+        labels: data.por_cliente.map(c => c.nombre),
+        datasets: [{
+          label: 'Recaudo',
+          data: data.por_cliente.map(c => c.recaudo),
+          backgroundColor: data.por_cliente.map((_, i) => colores[i % colores.length])
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+
+    document.getElementById('dashTabla').innerHTML = `
+      <table>
+        <thead><tr><th>Cliente</th><th>Facturas</th><th>Recaudo</th><th>% Participación</th></tr></thead>
+        <tbody>
+          ${data.por_cliente.map(c => `<tr>
+            <td>${c.nombre}</td>
+            <td style="text-align:right">${formatNum(c.facturas)}</td>
+            <td style="text-align:right">$${formatNum(c.recaudo)}</td>
+            <td style="text-align:right">${c.porcentaje.toFixed(2)}%</td>
+          </tr>`).join('')}
+          ${data.por_cliente.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">Sin datos para los filtros seleccionados</td></tr>' : ''}
+        </tbody>
+      </table>`;
+  }
+
+  function formatoMes(fecha) {
+    if (!fecha || fecha === 'Sin fecha') return fecha;
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const anio = fecha.slice(0, 4);
+    const mes = parseInt(fecha.slice(5, 7), 10) - 1;
+    return `${meses[mes]} ${anio}`;
+  }
+
+  init();
+</script>
+
+</body>
+</html>

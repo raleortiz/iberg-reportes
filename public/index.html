@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iberg - Gestión de Informes</title>
+  <title>Iberg - GestiÃ³n de Informes</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; color: #333; }
@@ -114,17 +115,19 @@
     .modal {
       background: white; border-radius: 12px; width: 500px; max-width: 90vw;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      display: flex; flex-direction: column; max-height: 90vh;
     }
     .modal-header {
       padding: 20px 24px; border-bottom: 1px solid #eee;
       display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
     }
     .modal-header h2 { font-size: 1.1rem; }
     .modal-close {
       background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #888;
     }
     .modal-close:hover { color: #333; }
-    .modal-body { padding: 24px; }
+    .modal-body { padding: 24px; overflow: auto; flex: 0 1 auto; }
 
     .upload-zone {
       border: 2px dashed #ccc; border-radius: 8px; padding: 30px; text-align: center;
@@ -141,6 +144,7 @@
     .modal-footer {
       padding: 16px 24px; border-top: 1px solid #eee;
       display: flex; justify-content: flex-end; gap: 10px;
+      flex-shrink: 0;
     }
 
     .progress-bar {
@@ -152,6 +156,81 @@
       height: 100%; background: #1565c0; border-radius: 3px;
       transition: width 0.3s; width: 0%;
     }
+
+    .dup-grupo {
+      border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 16px;
+      background: #fff; overflow: hidden;
+    }
+    .dup-grupo-header {
+      padding: 8px 12px; background: #fdecea; border-bottom: 1px solid #f5c6c6;
+      font-size: 0.9rem; display: flex; align-items: center;
+    }
+    .dup-badge {
+      margin-left: 8px; background: #c62828; color: #fff; font-size: 0.7rem;
+      padding: 2px 8px; border-radius: 10px; font-weight: 600;
+    }
+    .dup-grupo .table-scroll { max-height: 250px; }
+    .dup-yabase td { background: #fff3f3; }
+    .dup-grupo table { font-size: 0.8rem; }
+    .dup-grupo th { background: #fafafa; }
+
+    .aviso-exito {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: #2e7d32; color: #fff; border-radius: 10px;
+      padding: 16px 24px; display: flex; align-items: center; gap: 14px;
+      z-index: 2000; box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+      animation: avisoDown 0.4s ease; min-width: 420px; max-width: 90vw;
+    }
+    .aviso-exito .aviso-icon {
+      width: 40px; height: 40px; border-radius: 50%; background: #fff;
+      color: #2e7d32; display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; font-weight: 700; flex-shrink: 0;
+    }
+    .aviso-exito .aviso-texto { flex: 1; }
+    .aviso-exito .aviso-texto strong { display: block; font-size: 1.05rem; margin-bottom: 2px; }
+    .aviso-exito .aviso-texto p { font-size: 0.9rem; opacity: 0.95; margin: 0; }
+    .aviso-exito .aviso-cerrar {
+      background: none; border: none; color: #fff; font-size: 1.6rem;
+      cursor: pointer; opacity: 0.7; line-height: 1; flex-shrink: 0;
+    }
+    .aviso-exito .aviso-cerrar:hover { opacity: 1; }
+
+    @keyframes avisoDown {
+      from { transform: translateX(-50%) translateY(-30px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+
+    .dash-filtros {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 16px;
+      flex-wrap: wrap; align-items: flex-end;
+    }
+    .dash-filtros .campo { display: flex; flex-direction: column; gap: 4px; }
+    .dash-filtros label { font-size: 0.78rem; color: #888; text-transform: uppercase; font-weight: 600; }
+    .dash-filtros input[type="date"] { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+    .dash-filtros select.multi {
+      padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem;
+      min-width: 280px; max-width: 380px; min-height: 38px;
+    }
+    .dash-kpis {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 20px;
+    }
+    .dash-kpi {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 20px; border-left: 4px solid #1565c0;
+    }
+    .dash-kpi .dash-kpi-num { font-size: 1.8rem; font-weight: 700; color: #1a237e; margin-top: 6px; }
+    .dash-kpi .dash-kpi-lbl { font-size: 0.8rem; color: #888; text-transform: uppercase; }
+    .dash-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;
+    }
+    .dash-card {
+      background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px;
+    }
+    .dash-card h3 { font-size: 1rem; margin-bottom: 16px; }
+    .dash-card canvas { max-height: 340px; }
+    .dash-full { grid-column: 1 / -1; }
   </style>
 </head>
 <body>
@@ -159,7 +238,7 @@
 <div class="header">
   <div>
     <h1>INDUSTRIAS BERG SAS</h1>
-    <div class="subtitle">Sistema de Gestión de Informes de Ventas</div>
+    <div class="subtitle">Sistema de GestiÃ³n de Informes de Ventas</div>
   </div>
   <div style="text-align:right">
     <div style="font-size:0.8rem; opacity:0.7">NIT 890303902-9</div>
@@ -170,6 +249,12 @@
   <div class="toolbar">
     <button class="btn btn-primary" onclick="abrirModal()">
       Subir Excel
+    </button>
+    <button class="btn btn-success" onclick="abrirModalRecaudo()">
+      Subir Recaudo
+    </button>
+    <button class="btn btn-outline" onclick="window.location.href='dashboard.html'" style="background:#4527a0; color:white; border:none">
+      Dashboard Recaudo
     </button>
     <button class="btn btn-outline" onclick="cargarInformes()">
       Actualizar
@@ -184,6 +269,48 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="recaudoModal">
+  <div class="modal" style="width:600px">
+    <div class="modal-header">
+      <h2>Subir Recaudo</h2>
+      <button class="modal-close" onclick="cerrarModalRecaudo()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="upload-zone" id="zoneRecaudo" onclick="document.getElementById('fileRecaudo').click()">
+        <input type="file" id="fileRecaudo" accept=".xlsx,.xls" onchange="onRecaudoSelect(this)">
+        <div class="icon">&#128176;</div>
+        <div class="label">Archivo de Recaudo</div>
+        <div class="hint">Se validara que la combinacion NUMERO + FACTURA sea unica</div>
+        <div class="filename" id="nameRecaudo"></div>
+      </div>
+      <div class="progress-bar" id="progressRecaudo">
+        <div class="progress-bar-fill" id="progressRecaudoFill"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModalRecaudo()">Cancelar</button>
+      <button class="btn btn-success" id="btnSubirRecaudo" onclick="subirRecaudo()" disabled>
+        Validar y Subir
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="duplicadosModal">
+  <div class="modal" style="width:900px">
+    <div class="modal-header">
+      <h2 id="duplicadosTitle">Registros Duplicados</h2>
+      <button class="modal-close" onclick="cerrarDuplicados()">&times;</button>
+    </div>
+    <div class="modal-body" style="overflow:auto; flex:1 1 auto; min-height:0">
+      <div id="duplicadosBody"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="cerrarDuplicados()">Entendido</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="uploadModal">
   <div class="modal">
     <div class="modal-header">
@@ -195,7 +322,7 @@
         <input type="file" id="fileArt" accept=".xlsx,.xls" onchange="onFileSelect('art', this)">
         <div class="icon">&#128196;</div>
         <div class="label">Archivo ART</div>
-        <div class="hint">Excel de productos (RECORD DE VENTAS por artículo)</div>
+        <div class="hint">Excel de productos (RECORD DE VENTAS por artÃ­culo)</div>
         <div class="filename" id="nameArt"></div>
       </div>
       <div class="upload-zone" id="zoneVentas" onclick="document.getElementById('fileVentas').click()">
@@ -219,6 +346,139 @@
 </div>
 
 <script>
+  let recaudoFile = null;
+
+  function abrirModalRecaudo() {
+    document.getElementById('recaudoModal').classList.add('active');
+  }
+
+  function cerrarModalRecaudo() {
+    document.getElementById('recaudoModal').classList.remove('active');
+    recaudoFile = null;
+    document.getElementById('fileRecaudo').value = '';
+    document.getElementById('nameRecaudo').textContent = '';
+    document.getElementById('zoneRecaudo').classList.remove('has-file');
+    document.getElementById('btnSubirRecaudo').disabled = true;
+    document.getElementById('progressRecaudo').classList.remove('active');
+    document.getElementById('progressRecaudoFill').style.width = '0%';
+  }
+
+  function onRecaudoSelect(input) {
+    if (input.files.length > 0) {
+      recaudoFile = input.files[0];
+      document.getElementById('nameRecaudo').textContent = input.files[0].name;
+      document.getElementById('zoneRecaudo').classList.add('has-file');
+      document.getElementById('btnSubirRecaudo').disabled = false;
+    }
+  }
+
+  async function subirRecaudo() {
+    const btn = document.getElementById('btnSubirRecaudo');
+    const progress = document.getElementById('progressRecaudo');
+    const fill = document.getElementById('progressRecaudoFill');
+
+    btn.disabled = true;
+    btn.textContent = 'Validando...';
+    progress.classList.add('active');
+    fill.style.width = '50%';
+
+    try {
+      const formData = new FormData();
+      formData.append('recaudo', recaudoFile);
+
+      const res = await fetch('/api/upload/recaudo', { method: 'POST', body: formData });
+      const data = await res.json();
+      fill.style.width = '100%';
+
+      if (res.status === 409) {
+        mostrarDuplicados(data);
+        return;
+      }
+      if (!res.ok) throw new Error(data.error);
+
+      await cargarRecaudos();
+      const aviso = mostrarAvisoExito(
+        `Sin duplicados. El archivo se subio correctamente: ${data.registros} registros guardados.`
+      );
+      cerrarModalRecaudo();
+
+      setTimeout(() => {
+        aviso.remove();
+      }, 6000);
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Validar y Subir';
+      progress.classList.remove('active');
+      fill.style.width = '0%';
+    }
+  }
+
+  function mostrarAvisoExito(mensaje) {
+    const aviso = document.createElement('div');
+    aviso.className = 'aviso-exito';
+    aviso.innerHTML = `
+      <div class="aviso-icon">&#10004;</div>
+      <div class="aviso-texto">
+        <strong>Exito</strong>
+        <p>${mensaje}</p>
+      </div>
+      <button class="aviso-cerrar" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    document.body.appendChild(aviso);
+    return aviso;
+  }
+
+  function renderGrupoDuplicado(grupo, esBase) {
+    return `
+      <div class="dup-grupo">
+        <div class="dup-grupo-header">
+          <strong>${grupo.numero}</strong> + <strong>${grupo.factura}</strong>
+          <span style="margin-left:8px; color:#666; font-weight:normal">
+            (${grupo.registros.length} ${grupo.registros.length === 1 ? 'registro' : 'registros'})
+          </span>
+          ${grupo.registros.some(r => r.ya_en_base) ? '<span class="dup-badge">Ya en base</span>' : ''}
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th>NIT</th><th>Nombre</th><th>Fecha Recaudo</th><th>Fecha Factura</th><th>Recaudo</th><th>Total</th></tr></thead>
+          <tbody>${grupo.registros.map(r => `<tr${r.ya_en_base ? ' class="dup-yabase"' : ''}>
+            <td>${r.nit}</td><td>${r.nombre_cliente}</td>
+            <td>${r.fecha_recaudo || ''}</td><td>${r.fecha_factura || ''}</td>
+            <td style="text-align:right">${formatNum(r.recaudo)}</td>
+            <td style="text-align:right">${formatNum(r.total)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+      </div>`;
+  }
+
+  function mostrarDuplicados(data) {
+    document.getElementById('duplicadosTitle').textContent =
+      `Se encontraron ${data.total_duplicados} registros duplicados`;
+    document.getElementById('duplicadosBody').innerHTML = `
+      <div style="padding:10px 16px; background:#fdf2f2; border-left:4px solid #c62828; margin-bottom:16px; border-radius:4px">
+        <strong style="color:#c62828">La carga no se realizo.</strong>
+        Corrige los registros duplicados y vuelve a intentar. La clave debe ser unica.
+      </div>
+      <p style="margin-bottom:10px; color:#666">La clave unica se compone de <strong>NUMERO + FACTURA</strong>.
+      Los registros duplicados se muestran agrupados.</p>
+      ${data.en_base.length > 0 ? `
+        <h4 style="margin:12px 0 8px; color:#c62828">Ya existen en la base de datos:</h4>
+        ${data.en_base.map(g => renderGrupoDuplicado(g, true)).join('')}` : ''}
+      ${data.repetidos_en_archivo.length > 0 ? `
+        <h4 style="margin:16px 0 8px; color:#c62828">Repetidos dentro del archivo:</h4>
+        ${data.repetidos_en_archivo.map(g => renderGrupoDuplicado(g, false)).join('')}` : ''}
+    `;
+    document.getElementById('duplicadosModal').classList.add('active');
+  }
+
+  function cerrarDuplicados() {
+    document.getElementById('duplicadosModal').classList.remove('active');
+    document.getElementById('duplicadosBody').innerHTML = '';
+  }
+
+  async function cargarRecaudos() {}
+
   let informesData = [];
   let archivos = { art: null, ventas: null };
 
@@ -294,7 +554,7 @@
       renderInformes(informesData);
     } catch (err) {
       document.getElementById('listaInformes').innerHTML =
-        '<div class="empty"><h3>Error de conexión</h3><p>No se pudo conectar al servidor</p></div>';
+        '<div class="empty"><h3>Error de conexiÃ³n</h3><p>No se pudo conectar al servidor</p></div>';
     }
   }
 
@@ -315,9 +575,9 @@
         <div class="card-header" onclick="toggleCard(${inf.id}, '${inf.tipo}')">
           <div>
             <span class="badge badge-${inf.tipo.toLowerCase()}">${inf.tipo}</span>
-            <strong style="margin-left:10px">${inf.titulo || 'Sin título'}</strong>
+            <strong style="margin-left:10px">${inf.titulo || 'Sin tÃ­tulo'}</strong>
             <span style="margin-left:10px; color:#888; font-size:0.85rem">
-              ${inf.fecha_desde || '?'} — ${inf.fecha_hasta || '?'}
+              ${inf.fecha_desde || '?'} â€” ${inf.fecha_hasta || '?'}
             </span>
           </div>
           <div>
@@ -378,7 +638,7 @@
       <div class="table-scroll">
         <table>
           <thead><tr>
-            <th>Código</th><th>Producto</th><th>Cantidades</th><th>Valores</th><th>% Part</th>
+            <th>CÃ³digo</th><th>Producto</th><th>Cantidades</th><th>Valores</th><th>% Part</th>
           </tr></thead>
           <tbody>
             ${data.map(d => `<tr>
@@ -492,7 +752,7 @@
   }
 
   async function eliminar(id) {
-    if (!confirm('¿Eliminar este informe?')) return;
+    if (!confirm('Â¿Eliminar este informe?')) return;
 
     try {
       const res = await fetch(`/api/informes/${id}`, { method: 'DELETE' });
@@ -515,6 +775,7 @@
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
   }
+
 
   cargarInformes();
 </script>

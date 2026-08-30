@@ -20,6 +20,27 @@ function excelSerialToDate(serial) {
   return date.toISOString().split('T')[0];
 }
 
+const MESES_ES = {
+  'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06',
+  'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12'
+};
+
+function fechaTextoToDate(valor) {
+  if (!valor) return null;
+  if (typeof valor === 'number') return excelSerialToDate(valor);
+  const str = String(valor).trim();
+  const m = str.match(/^([A-Za-z]{3})-(\d{1,2})-(\d{4})$/);
+  if (m) {
+    const anio = m[3];
+    const mes = MESES_ES[m[1].toLowerCase()];
+    const dia = String(parseInt(m[2], 10)).padStart(2, '0');
+    if (mes) return `${anio}-${mes}-${dia}`;
+  }
+  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return str;
+  return null;
+}
+
 function parseExcelART(data) {
   const empresa = data[0]?.[0] || '';
   const nit = data[1]?.[0] || '';
@@ -139,6 +160,253 @@ async function saveInforme(tipo, parsed) {
 
   return { id: informe.id, tipo, registros: rows.length };
 }
+
+function parseRecaudo(data) {
+  const empresa = data[0]?.[0] || '';
+  const nit = data[1]?.[0] || '';
+  const titulo = data[3]?.[0] || '';
+  const periodo = data[4]?.[0] || '';
+  const registros = [];
+  let i = 7;
+
+  while (i < data.length) {
+    const r = data[i];
+    if (!r) { i++; continue; }
+
+    const fechaRecaudo = r[1];
+    const numero = r[2];
+    const fechaFactura = r[3];
+    const factura = r[4];
+    const recaudo = r[5];
+    const noExterno = r[6];
+    const descuentos = r[7];
+    const retencion = r[8];
+    const total = r[9];
+    const nitCliente = r[10];
+    const nombre = r[11];
+
+    const tieneDatos = numero !== undefined && numero !== null && String(numero).trim() !== '' &&
+                       factura !== undefined && factura !== null && String(factura).trim() !== '';
+
+    if (tieneDatos) {
+      const claveUnica = `${String(numero).trim()}|${String(factura).trim()}`;
+      registros.push({
+        clave_unica: claveUnica,
+        fecha_recaudo: fechaTextoToDate(fechaRecaudo),
+        numero: String(numero).trim(),
+        fecha_factura: fechaTextoToDate(fechaFactura),
+        factura: String(factura).trim(),
+        recaudo: parseFloat(recaudo) || 0,
+        no_externo: noExterno !== undefined && noExterno !== null ? String(noExterno).trim() : '',
+        descuentos: parseFloat(descuentos) || 0,
+        retencion: parseFloat(retencion) || 0,
+        total: parseFloat(total) || 0,
+        nit: String(nitCliente || '').trim(),
+        nombre_cliente: String(nombre || '').trim()
+      });
+    }
+    i++;
+  }
+
+  return {
+    empresa: empresa.replace(/\s+/g, ' ').trim(),
+    nit: nit.replace(/\s+/g, ' ').trim(),
+    titulo: titulo.replace(/\s+/g, ' ').trim(),
+    periodo: periodo.replace(/\s+/g, ' ').trim(),
+    registros
+  };
+}
+
+app.post('/api/upload/recaudo', upload.single('recaudo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibio ningun archivo de recaudo' });
+    }
+
+    const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const recaudoData = parseRecaudo(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
+
+    if (recaudoData.registros.length === 0) {
+      return res.status(400).json({ error: 'No se encontraron registros en el archivo' });
+    }
+
+    const claves = recaudoData.registros.map(r => r.clave_unica);
+    const { data: existentes, error: errExist } = await supabase
+      .from('recaudo')
+      .select('clave_unica, numero, factura, nit, nombre_cliente, total')
+      .in('clave_unica', claves);
+
+    if (errExist) throw errExist;
+
+    const clavesExistentes = new Set((existentes || []).map(e => e.clave_unica));
+
+    const repetidosEnArchivo = {};
+    const vistosArchivo = new Set();
+    for (const r of recaudoData.registros) {
+      if (vistosArchivo.has(r.clave_unica)) {
+        if (!repetidosEnArchivo[r.clave_unica]) repetidosEnArchivo[r.clave_unica] = [];
+        repetidosEnArchivo[r.clave_unica].push(r);
+      }
+      vistosArchivo.add(r.clave_unica);
+    }
+
+    const enBase = recaudoData.registros
+      .filter(r => clavesExistentes.has(r.clave_unica))
+      .map(r => {
+        const existente = (existentes || []).find(e => e.clave_unica === r.clave_unica);
+        return { ...r, ya_en_base: true, ...(existente || {}) };
+      });
+
+    function agruparPorClave(items) {
+      const grupos = {};
+      for (const item of items) {
+        if (!grupos[item.clave_unica]) grupos[item.clave_unica] = [];
+        grupos[item.clave_unica].push(item);
+      }
+      return Object.values(grupos).map(grupo => ({
+        clave_unica: grupo[0].clave_unica,
+        numero: grupo[0].numero,
+        factura: grupo[0].factura,
+        registros: grupo.map(r => ({
+          nit: r.nit,
+          nombre_cliente: r.nombre_cliente,
+          fecha_recaudo: r.fecha_recaudo,
+          fecha_factura: r.fecha_factura,
+          recaudo: r.recaudo,
+          total: r.total,
+          ya_en_base: !!r.ya_en_base
+        }))
+      }));
+    }
+
+    const enBaseAgrupado = agruparPorClave(enBase);
+    const repetidosEnArchivoAgrupado = agruparPorClave(Object.values(repetidosEnArchivo).flat());
+
+    const totalDuplicados =
+      enBaseAgrupado.reduce((s, g) => s + g.registros.length, 0) +
+      repetidosEnArchivoAgrupado.reduce((s, g) => s + g.registros.length, 0);
+
+    if (enBaseAgrupado.length > 0 || repetidosEnArchivoAgrupado.length > 0) {
+      return res.status(409).json({
+        error: 'Se encontraron registros duplicados. La carga no se realizo.',
+        en_base: enBaseAgrupado,
+        repetidos_en_archivo: repetidosEnArchivoAgrupado,
+        total_duplicados: totalDuplicados
+      });
+    }
+
+    const registrosUnicos = Object.values(
+      recaudoData.registros.reduce((acc, r) => { acc[r.clave_unica] = r; return acc; }, {})
+    );
+
+    const { error: errInsert } = await supabase.from('recaudo').insert(registrosUnicos);
+    if (errInsert) throw errInsert;
+
+    res.json({
+      mensaje: 'Recaudos cargados correctamente',
+      registros: registrosUnicos.length
+    });
+  } catch (error) {
+    console.error('Error al cargar recaudo:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/recaudos', async (req, res) => {
+  const { data, error } = await supabase
+    .from('recaudo')
+    .select('*')
+    .order('fecha_recaudo', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.get('/api/recaudos/clientes', async (req, res) => {
+  const { data, error } = await supabase
+    .from('recaudo')
+    .select('nombre_cliente')
+    .not('nombre_cliente', 'is', null)
+    .neq('nombre_cliente', '');
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const clientes = [...new Set((data || []).map(d => d.nombre_cliente))]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'es'));
+
+  res.json(clientes);
+});
+
+app.get('/api/recaudos/dashboard', async (req, res) => {
+  try {
+    const { desde, hasta, clientes, agrupar } = req.query;
+
+    let query = supabase.from('recaudo').select('*');
+
+    if (desde) query = query.gte('fecha_recaudo', desde);
+    if (hasta) query = query.lte('fecha_recaudo', hasta);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    let filtrados = data || [];
+
+    if (clientes) {
+      const lista = clientes.split(',');
+      filtrados = filtrados.filter(r => lista.includes(r.nombre_cliente));
+    }
+
+    if (filtrados.length === 0) {
+      return res.json({
+        kpis: { recaudo_total: 0, facturas: 0, clientes: 0, promedio: 0 },
+        por_dia: [],
+        por_cliente: []
+      });
+    }
+
+    const recaudoTotal = filtrados.reduce((s, r) => s + (parseFloat(r.recaudo) || 0), 0);
+    const facturas = filtrados.length;
+    const clientesUnicos = new Set(filtrados.map(r => r.nombre_cliente).filter(Boolean)).size;
+
+    const porDiaMap = {};
+    const esMes = agrupar === 'mes';
+    for (const r of filtrados) {
+      const fecha = r.fecha_recaudo || null;
+      const clave = !fecha ? 'Sin fecha' : esMes ? fecha.slice(0, 7) : fecha;
+      porDiaMap[clave] = porDiaMap[clave] || { fecha: clave, recaudo: 0, facturas: 0 };
+      porDiaMap[clave].recaudo += parseFloat(r.recaudo) || 0;
+      porDiaMap[clave].facturas += 1;
+    }
+    const porDia = Object.values(porDiaMap).sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+    const porClienteMap = {};
+    for (const r of filtrados) {
+      const c = r.nombre_cliente || 'Sin cliente';
+      porClienteMap[c] = porClienteMap[c] || { recaudo: 0, facturas: 0 };
+      porClienteMap[c].recaudo += parseFloat(r.recaudo) || 0;
+      porClienteMap[c].facturas += 1;
+    }
+    const porCliente = Object.entries(porClienteMap)
+      .map(([nombre, v]) => ({ nombre, recaudo: v.recaudo, facturas: v.facturas, porcentaje: recaudoTotal ? (v.recaudo / recaudoTotal) * 100 : 0 }))
+      .sort((a, b) => b.recaudo - a.recaudo);
+
+    res.json({
+      kpis: {
+        recaudo_total: recaudoTotal,
+        facturas,
+        clientes: clientesUnicos,
+        promedio: facturas ? recaudoTotal / facturas : 0
+      },
+      por_dia: porDia,
+      por_cliente: porCliente
+    });
+  } catch (err) {
+    console.error('Error dashboard:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.post('/api/upload', upload.fields([
   { name: 'art', maxCount: 1 },
