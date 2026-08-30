@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iberg - GestiÃ³n de Informes</title>
+  <title>Iberg - Gestión de Informes</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -238,7 +238,7 @@
 <div class="header">
   <div>
     <h1>INDUSTRIAS BERG SAS</h1>
-    <div class="subtitle">Sistema de GestiÃ³n de Informes de Ventas</div>
+    <div class="subtitle">Sistema de Gestión de Informes de Ventas</div>
   </div>
   <div style="text-align:right">
     <div style="font-size:0.8rem; opacity:0.7">NIT 890303902-9</div>
@@ -554,7 +554,7 @@
       renderInformes(informesData);
     } catch (err) {
       document.getElementById('listaInformes').innerHTML =
-        '<div class="empty"><h3>Error de conexiÃ³n</h3><p>No se pudo conectar al servidor</p></div>';
+        '<div class="empty"><h3>Error de conexión</h3><p>No se pudo conectar al servidor</p></div>';
     }
   }
 
@@ -638,7 +638,7 @@
       <div class="table-scroll">
         <table>
           <thead><tr>
-            <th>CÃ³digo</th><th>Producto</th><th>Cantidades</th><th>Valores</th><th>% Part</th>
+            <th>Código</th><th>Producto</th><th>Cantidades</th><th>Valores</th><th>% Part</th>
           </tr></thead>
           <tbody>
             ${data.map(d => `<tr>
